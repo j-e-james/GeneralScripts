@@ -1,0 +1,532 @@
+module load bioinfo-tools
+module load samtools/1.9
+
+
+
+sbatch -A snic2022-22-910 -n 1 -t 2:00:00 -p core -J samfaidx --wrap="samtools faidx /proj/snic2020-6-184/Allotetraploid/Asuecica_GCA_905175345"
+ 
+sbatch -A snic2022-22-910 -n 1 -t 2:00:00 -p core -J samfaidx --wrap="samtools faidx /proj/snic2020-6-184/Allotetraploid/Aarenosa_GCA_905175405"
+
+gunzip
+sbatch -A snic2022-22-910 -n 1 -t 2:00:00 -p core -J samfaidx --wrap="samtools faidx /proj/snic2020-6-184/Allotetraploid/TAIR10_chr_all.fas"
+
+
+
+for acc in *.sam.gz
+do 
+sbatch -A snic2022-22-910 -n 10 -t 2:00:00 -p core -J bam_convert --wrap="samtools view -@ 10  -bh -t /proj/snic2020-6-184/Allotetraploid/Asuecica_GCA_905175345.fai -o /proj/snic2020-6-184/Allotetraploid/AsuecicaReads/"${acc%.*.*}".bam /proj/snic2020-6-184/Allotetraploid/AsuecicaReads/$acc"
+done
+
+for acc in *.bam
+do
+sbatch -A snic2022-22-910 -n 10 -t 1:00:00 -p core -J sort --wrap="samtools sort -@ 10 -o /proj/snic2020-6-184/Allotetraploid/AarenosaReads/"${acc%.*}".sort.bam /proj/snic2020-6-184/Allotetraploid/AarenosaReads/$acc"
+done
+
+
+
+
+module load samtools/1.17
+
+for acc in *.sort.bam
+
+for acc in SRR2084154.sort.bam
+do
+sbatch -A snic2022-22-910 -n 10 -t 4:00:00 -p core -J sort_and_filter --wrap="samtools index /proj/snic2020-6-184/Allotetraploid/AsuecicaReads/$acc
+samtools markdup -r /proj/snic2020-6-184/Allotetraploid/AsuecicaReads/$acc /proj/snic2020-6-184/Allotetraploid/AsuecicaReads/"${acc%.*.*}".rmdup.bam
+samtools index /proj/snic2020-6-184/Allotetraploid/AsuecicaReads/"${acc%.*.*}".rmdup.bam
+samtools view -F 256 -q 5 -f 3 -h -b /proj/snic2020-6-184/Allotetraploid/AsuecicaReads/"${acc%.*.*}".rmdup.bam > /proj/snic2020-6-184/Allotetraploid/AsuecicaReads/"${acc%.*.*}".filt.bam
+samtools index /proj/snic2020-6-184/Allotetraploid/AsuecicaReads/"${acc%.*.*}".filt.bam"
+done
+
+samtools index $out/$acc.sort.bam
+#### this has been deprecated, #### use markdup -r instead:
+samtools rmdup $out/$acc.sort.bam $out/$acc.rmdup.bam
+samtools index $out/$acc.rmdup.bam
+samtools view -F 256 -q 5 -f 3 -h -b $out/$acc.rmdup.bam > $out/$acc.filt.bam
+#primary aligned reads, unique and mapped in proper pair
+samtools index $out/$acc.filt.bam
+#final file for SNP calling
+
+
+
+
+########## FROM HERE
+
+
+samtools faidx /proj/snic2020-6-184/Allotetraploid/Asuecica_GCA_905175345
+
+bwa index /proj/snic2020-6-184/Allotetraploid/Asuecica_GCA_905175345
+
+
+module load bioinfo-tools
+module load samtools/1.9
+module load bwa/0.7.17
+
+
+# for acc in *_1.fastq.gz 
+for acc in SRR2084154_1.fastq.gz
+for acc in !(SRR2084154)_1.fastq.gz
+do
+sbatch -A snic2022-22-910 -n 10 -t 24:00:00 -p core -J sort_and_filter --wrap="
+
+#increased penalty for unpaired reads
+bwa mem -t 10 -M -U 15 -R '@RG\tID:'"${acc%_*}"'\tSM:'"${acc%_*}"'\tPL:Illumina\tLB:'"${acc%_*}" /proj/snic2020-6-184/Allotetraploid/Asuecica_GCA_905175345.gz /proj/snic2020-6-184/Allotetraploid/AsuecicaReads/"${acc%_*}"_1.fastq.gz /proj/snic2020-6-184/Allotetraploid/AsuecicaReads/"${acc%_*}"_2.fastq.gz >/proj/snic2020-6-184/Allotetraploid/AsuecicaReads/"${acc%_*}".sam 
+
+samtools view -@ 10  -bh -t /proj/snic2020-6-184/Allotetraploid/Asuecica_GCA_905175345.fai -o /proj/snic2020-6-184/Allotetraploid/AsuecicaReads/"${acc%_*}".bam /proj/snic2020-6-184/Allotetraploid/AsuecicaReads/"${acc%_*}".sam
+samtools sort -@ 10 -o /proj/snic2020-6-184/Allotetraploid/AsuecicaReads/"${acc%_*}".sort.bam /proj/snic2020-6-184/Allotetraploid/AsuecicaReads/"${acc%_*}".bam
+
+samtools index /proj/snic2020-6-184/Allotetraploid/AsuecicaReads/"${acc%_*}".sort.bam
+
+samtools rmdup /proj/snic2020-6-184/Allotetraploid/AsuecicaReads/"${acc%_*}".sort.bam /proj/snic2020-6-184/Allotetraploid/AsuecicaReads/"${acc%_*}".rmdup.bam
+samtools index /proj/snic2020-6-184/Allotetraploid/AsuecicaReads/"${acc%_*}".rmdup.bam
+samtools view -F 256 -q 5 -f 3 -h -b /proj/snic2020-6-184/Allotetraploid/AsuecicaReads/"${acc%_*}".rmdup.bam > /proj/snic2020-6-184/Allotetraploid/AsuecicaReads/"${acc%_*}".filt.bam
+samtools index /proj/snic2020-6-184/Allotetraploid/AsuecicaReads/"${acc%_*}".filt.bam
+
+"
+sleep 1
+done
+
+
+for acc in *_1.fastq.gz 
+do
+sbatch -A snic2022-22-910 -n 1 -t 8:00:00 -p core -J sort_and_filter --wrap="
+samtools rmdup /proj/snic2020-6-184/Allotetraploid/AarenosaReads/"${acc%_*}".sort.bam /proj/snic2020-6-184/Allotetraploid/AarenosaReads/"${acc%_*}".rmdup.bam
+samtools index /proj/snic2020-6-184/Allotetraploid/AarenosaReads/"${acc%_*}".rmdup.bam
+samtools view -F 256 -q 5 -f 3 -h -b /proj/snic2020-6-184/Allotetraploid/AarenosaReads/"${acc%_*}".rmdup.bam > /proj/snic2020-6-184/Allotetraploid/AarenosaReads/"${acc%_*}".filt.bam
+samtools index /proj/snic2020-6-184/Allotetraploid/AarenosaReads/"${acc%_*}".filt.bam
+
+"
+sleep 1
+done
+
+
+
+
+samtools fixmate -m /proj/snic2020-6-184/Allotetraploid/AsuecicaReads/$acc /proj/snic2020-6-184/Allotetraploid/AsuecicaReads/"${acc%.*.*}".fixmate.bam
+samtools markdup -r /proj/snic2020-6-184/Allotetraploid/AsuecicaReads/"${acc%.*.*}".fixmate.bam /proj/snic2020-6-184/Allotetraploid/AsuecicaReads/"${acc%.*.*}".markdup.bam
+samtools index /proj/snic2020-6-184/Allotetraploid/AsuecicaReads/"${acc%.*.*}".markdup.bam
+samtools view -F 256 -q 5 -f 3 -h -b /proj/snic2020-6-184/Allotetraploid/AsuecicaReads/"${acc%.*.*}".markdup.bam > /proj/snic2020-6-184/Allotetraploid/AsuecicaReads/"${acc%.*.*}".filt.bam
+samtools index /proj/snic2020-6-184/Allotetraploid/AsuecicaReads/"${acc%.*.*}".filt.bam"
+done
+
+### then we will call on all bam files
+samtools mpileup
+
+
+
+
+
+########## Mapping completed- now conduct SNP calling
+module load bioinfo-tools
+module load GATK/4.3.0.0
+
+chrom="Asue_scaffold1"
+ploidy=2
+
+gatk --java -Xmx30g
+   -R ${ref} \
+  -T HaplotypeCaller \
+   -I ${out}/${acc}.filt.bam\
+   --emitRefConfidence GVCF \
+   -o ${out}/${acc}.${chrom}.g.vcf \
+  --sample_ploidy ${ploidy} \
+   -variant_index_type LINEAR \
+   -variant_index_parameter 128000 \
+   -nct 8 \
+  -L ${chrom}
+  
+  
+sbatch -A snic2022-22-910 -n 1 -t 2:00:00 -p core -J gatk_trial --wrap="
+gatk --java-options "-Xmx30g" HaplotypeCaller \
+   -R /proj/snic2020-6-184/Allotetraploid/Asuecica_GCA_905175345 \
+  -T HaplotypeCaller \
+   -I SRR2084154.filt.bam \
+   --emitRefConfidence GVCF \
+   -o ${out}/SRR2084154.filt.bam.${chrom}.g.vcf \
+  --sample_ploidy ${ploidy} \
+   -variant_index_type LINEAR \
+   -variant_index_parameter 128000 \
+   -nct 8 \
+  -L ${chrom}"
+  
+  
+  
+module load bioinfo-tools
+module load GATK/4.3.0.0
+
+    
+sbatch -A snic2022-22-910 -n 4 -t 30:00:00 -p core -J gatk_trial --wrap="
+gatk --java-options "-Xmx30g" HaplotypeCaller \
+   -R /proj/snic2020-6-184/Allotetraploid/Asuecica_GCA_905175345.fa \
+   -I SRR2084158.filt.bam \
+   --emit-ref-confidence GVCF \
+   -O SRR2084158.filt.bam.g.vcf \
+  --sample-ploidy 2"                    
+
+
+gatk CreateSequenceDictionary R=Aarenosa_GCA_905175405.fa O=Aarenosa_GCA_905175405.dict
+gatk CreateSequenceDictionary R=TAIR10_chr_all.fas O=TAIR10_chr_all.dict
+
+for acc in SRR2084154.filt.bam;
+do 
+sbatch -A snic2022-22-910 -n 4 -t 30:00:00 -p core -J gatk_trial --wrap="
+gatk --java-options "-Xmx30g" HaplotypeCaller \
+   -R /proj/snic2020-6-184/Allotetraploid/Asuecica_GCA_905175345.fa \
+   -I $acc \
+   --emit-ref-confidence GVCF \
+   -O "$acc".g.vcf \
+  --sample-ploidy 2"   
+sleep 1
+done                 
+
+
+For Aarenosa, RG is not present, causing error. Add this line, in format:
+@RG	ID:SRR3123762	SM:SRR3123762	PL:Illumina	LB:SRR3123762
+
+module load picard/2.27.5
+
+for acc in !(SRR2040811).rmdup.bam.bai
+do
+sbatch -A snic2022-22-910 -n 1 -t 00:30:00 -p core -J picard_index --wrap="
+java -jar $PICARD_ROOT/picard.jar AddOrReplaceReadGroups I="${acc%.*.*.*}".filt.bam O="${acc%.*.*.*}".RG.tag.filt.bam RGID="${acc%.*.*.*}" RGLB="${acc%.*.*.*}" RGPL=ILLUMINA RGPU=unit1 RGSM="${acc%.*.*.*}"
+samtools index "${acc%.*.*.*}".RG.tag.filt.bam"
+sleep 1
+done
+
+
+
+### in arenosa, this step is taking a long time
+
+for acc in *.filt.bam;
+
+for acc in !(SRR2040814).RG.tag.filt.bam;
+do 
+sbatch -A snic2022-22-910 -n 4 -t 80:00:00 -p core -J gatk_trial --wrap="
+gatk --java-options "-Xmx30g" HaplotypeCaller \
+   -R /proj/snic2020-6-184/Allotetraploid/Aarenosa_GCA_905175405.fa \
+   -I $acc \
+   --emit-ref-confidence GVCF \
+   -O "$acc".g.vcf \
+  --sample-ploidy 4"   
+sleep 1
+done                 
+
+
+SRR2084154
+SRR2084157
+SRR2084158
+  
+
+#==================================== STEP1 =========================================
+# ==== call SNPs with GATK - Haplotype Caller per each Chromosome per individual ====
+#echo "for the given input file ${inputfile}, the output vcf file is $output_vcf_file"
+chrom="Asue_scaffold1" #change
+ploidy=2
+mv ${out}/${acc}.intervals.${chrom} ${out}/${acc}.${chrom}.intervals
+acc='ASS3a'
+java -Xmx30g -Djava.io.tmpdir=$TMP -jar $EBROOTGATK/GenomeAnalysisTK.jar \
+   -R ${ref} \
+  -T HaplotypeCaller \
+   -I ${out}/${acc}.filt.bam\
+   --emitRefConfidence GVCF \
+   -o ${out}/${acc}.${chrom}.g.vcf \
+  --sample_ploidy ${ploidy} \
+   -variant_index_type LINEAR \
+   -variant_index_parameter 128000 \
+   -nct 8 \
+  -L ${chrom}
+# 
+
+
+
+# ==================================== STEP2 ===============================================
+# ==== combine g.vcf files of all individuals for a given chromosome with CombineGVCFs ====
+
+# except that we modernise, and use the latest version of GATK:
+
+### A suecica contigs
+##contig=<ID=ENA|CAJIMT010000001|CAJIMT010000001.1,length=29820293>
+##contig=<ID=ENA|CAJIMT010000002|CAJIMT010000002.1,length=19960976>
+##contig=<ID=ENA|CAJIMT010000003|CAJIMT010000003.1,length=23973311>
+##contig=<ID=ENA|CAJIMT010000004|CAJIMT010000004.1,length=19168148>
+##contig=<ID=ENA|CAJIMT010000005|CAJIMT010000005.1,length=26106147>
+##contig=<ID=ENA|CAJIMT010000006|CAJIMT010000006.1,length=21826118>
+##contig=<ID=ENA|CAJIMT010000007|CAJIMT010000007.1,length=14568019>
+##contig=<ID=ENA|CAJIMT010000008|CAJIMT010000008.1,length=19280462>
+##contig=<ID=ENA|CAJIMT010000009|CAJIMT010000009.1,length=17283699>
+##contig=<ID=ENA|CAJIMT010000010|CAJIMT010000010.1,length=16176792>
+##contig=<ID=ENA|CAJIMT010000011|CAJIMT010000011.1,length=19002944>
+##contig=<ID=ENA|CAJIMT010000012|CAJIMT010000012.1,length=19590761>
+##contig=<ID=ENA|CAJIMT010000013|CAJIMT010000013.1,length=15806088>
+
+
+### the A. arenosa genome is highly fragmented, combine contigs to generate lengths to run the caller on
+AarenosaContigs.txt
+AarenosaContigs.py
+
+
+Provide sample GVCFs in a map file.
+  
+The sample map is a tab-delimited text file with sample_name--tab--path_to_sample_vcf per line. 
+Using a sample map saves the tool from having to download the GVCF headers in order to determine 
+the sample names. Sample names in the sample name map file may have non-tab whitespace, but may not 
+begin or end with whitespace.
+
+  sample1      sample1.vcf.gz
+  sample2      sample2.vcf.gz
+  sample3      sample3.vcf.gz
+
+
+Aarenosa.sample_map
+SRR2040811	SRR2040811.RG.tag.filt.bam.g.vcf
+SRR2040812	SRR2040812.RG.tag.filt.bam.g.vcf
+SRR2040813	SRR2040813.RG.tag.filt.bam.g.vcf
+SRR2040814	SRR2040814.RG.tag.filt.bam.g.vcf
+SRR2040815	SRR2040815.RG.tag.filt.bam.g.vcf
+SRR2040816	SRR2040816.RG.tag.filt.bam.g.vcf
+SRR2040817	SRR2040817.RG.tag.filt.bam.g.vcf
+SRR2040818	SRR2040818.RG.tag.filt.bam.g.vcf
+SRR2082785	SRR2082785.RG.tag.filt.bam.g.vcf
+
+Asuecica.sample_map
+SRR2084154	SRR2084154.filt.bam.g.vcf
+SRR2084157	SRR2084157.filt.bam.g.vcf
+SRR2084158	SRR2084158.filt.bam.g.vcf
+SRR3123759	SRR3123759.filt.bam.g.vcf
+SRR3123760	SRR3123760.filt.bam.g.vcf
+SRR3123761	SRR3123761.filt.bam.g.vcf
+SRR3123762	SRR3123762.filt.bam.g.vcf
+SRR3123763	SRR3123763.filt.bam.g.vcf
+SRR3123764	SRR3123764.filt.bam.g.vcf
+SRR3123765	SRR3123765.filt.bam.g.vcf
+SRR3123766	SRR3123766.filt.bam.g.vcf
+SRR3123767	SRR3123767.filt.bam.g.vcf
+SRR3123768	SRR3123768.filt.bam.g.vcf
+SRR3123769	SRR3123769.filt.bam.g.vcf
+
+
+
+
+for L in 'ENA|CAJIMT010000002|CAJIMT010000002.1' 'ENA|CAJIMT010000002|CAJIMT010000002.1' 'ENA|CAJIMT010000003|CAJIMT010000003.1' 'ENA|CAJIMT010000004|CAJIMT010000004.1' 'ENA|CAJIMT010000005|CAJIMT010000005.1' 'ENA|CAJIMT010000006|CAJIMT010000006.1' 'ENA|CAJIMT010000007|CAJIMT010000007.1' 'ENA|CAJIMT010000008|CAJIMT010000008.1' 'ENA|CAJIMT010000009|CAJIMT010000009.1' 'ENA|CAJIMT010000010|CAJIMT010000010.1' 'ENA|CAJIMT010000011|CAJIMT010000011.1' 'ENA|CAJIMT010000012|CAJIMT010000012.1' 'ENA|CAJIMT010000013|CAJIMT010000013.1'
+do
+chrom=\'$L\'
+echo $chrom
+sbatch -A snic2022-22-910 -n 5 -t 1:00:00 -p core -J gatk_combine --wrap="
+gatk --java-options '-Xmx4g -Xms4g' \
+       GenomicsDBImport \
+       --genomicsdb-workspace-path /proj/snic2020-6-184/Allotetraploid/AsuecicaReads/${L:4:-18} \
+       --batch-size 14 \
+       -L $chrom \
+       --sample-name-map Asuecica.sample_map \
+       --tmp-dir /proj/snic2020-6-184/Allotetraploid/AsuecicaReads/tmp \
+       --reader-threads 5"
+sleep 1
+done       
+  
+
+
+### for A arenosa we will provide contigs in lists- this is the general form, LIST and LISTNAME are taken from AarenosContigs.py,
+### the full commands are output from that python programme
+
+sbatch -A snic2022-22-910 -n 5 -t 1:00:00 -p core -J gatk_combine --wrap="
+gatk --java-options '-Xmx4g -Xms4g' \
+       GenomicsDBImport \
+       --genomicsdb-workspace-path /proj/snic2020-6-184/Allotetraploid/AarenosaReads/LISTNAME \
+       --batch-size 14 \
+       -L LIST \
+       --sample-name-map Aarenosa.sample_map \
+       --tmp-dir /proj/snic2020-6-184/Allotetraploid/AarenosaReads/tmp \
+       --reader-threads 5"
+  
+  
+  
+  gatk --java-options '-Xmx4g -Xms4g' \
+       GenomicsDBImport \
+       --genomicsdb-workspace-path /proj/snic2020-6-184/Allotetraploid/AarenosaReads/ContigGroup12 \
+       --batch-size 14 \
+       -L ContigGroup12.intervals \
+       --sample-name-map Aarenosa.sample_map \
+       --tmp-dir /proj/snic2020-6-184/Allotetraploid/AarenosaReads/tmp \
+       --reader-threads 5
+
+
+
+
+#=========================================== STEP3 =======================================================
+# ==== convert g.vcf file of a given chr to a vcf with GenotypeGVCFs for joint genotyping of all inds ====
+
+### i.e. call SNPs using GenotypeGVCFs, now that we have gathered per chromosome data across all samples
+
+for L in CAJIMT010000001 CAJIMT010000002 CAJIMT010000003 CAJIMT010000004 CAJIMT010000005 CAJIMT010000006 CAJIMT010000007 CAJIMT010000008 CAJIMT010000009 CAJIMT010000010 CAJIMT010000011 CAJIMT010000012 CAJIMT010000013
+
+for L in 'ENA|CAJIMT010000003|CAJIMT010000003.1' 'ENA|CAJIMT010000004|CAJIMT010000004.1' 'ENA|CAJIMT010000005|CAJIMT010000005.1' 'ENA|CAJIMT010000006|CAJIMT010000006.1' 'ENA|CAJIMT010000007|CAJIMT010000007.1' 'ENA|CAJIMT010000008|CAJIMT010000008.1' 'ENA|CAJIMT010000009|CAJIMT010000009.1' 'ENA|CAJIMT010000010|CAJIMT010000010.1' 'ENA|CAJIMT010000011|CAJIMT010000011.1' 'ENA|CAJIMT010000012|CAJIMT010000012.1' 'ENA|CAJIMT010000013|CAJIMT010000013.1'
+do
+chrom=\'$L\'
+sbatch -A snic2022-22-910 -n 1 -t 8:00:00 -p core -J gatk_genotype --wrap="
+gatk --java-options "-Xmx4g" GenotypeGVCFs \
+   -R /proj/snic2020-6-184/Allotetraploid/Asuecica_GCA_905175345.fa \
+   --include-non-variant-sites \
+   -L $chrom \
+   -V gendb://${L:4:-18} \
+   -O ${L:4:-18}.vcf.gz "
+sleep 1
+done
+
+###required more memory due to Detected 1 oom-kill event(s) error
+for L in 'ENA|CAJIMT010000001|CAJIMT010000001.1'
+do
+chrom=\'$L\'
+sbatch -A snic2022-22-910 -n 5 -t 8:00:00 -p core -J gatk_genotype --wrap="
+gatk --java-options "-Xmx4g" GenotypeGVCFs \
+   -R /proj/snic2020-6-184/Allotetraploid/Asuecica_GCA_905175345.fa \
+   --include-non-variant-sites \
+   -L $chrom \
+   -V gendb://${L:4:-18} \
+   -O ${L:4:-18}.vcf.gz "
+sleep 1
+done
+
+
+### for A arenosa we must provide contigs in lists, files labelled from 1 to 23: ContigGroup$L.intervals. See AarenosaContigs.py for generation.
+
+for L in {1..23}
+do 
+sbatch -A snic2022-22-910 -n 1 -t 8:00:00 -p core -J gatk_genotype --wrap="
+gatk --java-options "-Xmx4g" GenotypeGVCFs \
+   -R /proj/snic2020-6-184/Allotetraploid/Aarenosa_GCA_905175405.fa \
+   --include-non-variant-sites \
+   -L ContigGroup$L.intervals \
+   -V gendb://ContigGroup$L \
+   -O ContigGroup$L.vcf.gz "
+sleep 1
+done
+
+
+
+
+#=========================================== STEP4 Filtering =======================================================
+
+#=========================================== Generic filtering commands =======================================================
+
+(After using HaplotypeCaller)
+
+gatk VariantFiltration command
+
+Sites with greater than 60 Fisher strand (FS)
+
+Sites with less than 40 mapping quality (MQ)
+
+Sites with less than −12.5 mapping quality rank sum test (MQRankSum)
+
+Sites with less than 30 quality (QUAL)
+
+Sites with less than 2.0 quality by depth (QD)
+
+Sites with less than −8.0 read position rank sum test (ReadPosRankSum)
+
+Sites with greater than 3.0 strand odds ratio (SOR)
+
+Genotype calls with less than 20 genotype quality (GQ)
+
+
+
+for L in CAJIMT010000002 CAJIMT010000004 CAJIMT010000006 CAJIMT010000007 CAJIMT010000008 CAJIMT010000009 CAJIMT010000010 CAJIMT010000011 CAJIMT010000012 CAJIMT010000013
+for L in CAJIMT010000003 CAJIMT010000005 
+do
+sbatch -A snic2022-22-910 -n 1 -t 5:00:00 -p core -J gatk_filter --wrap="
+gatk VariantFiltration \
+-R /proj/snic2020-6-184/Allotetraploid/Asuecica_GCA_905175345.fa \
+-V $L.vcf.gz \
+-O $L.filt.vcf.gz \
+-filter 'FS > 60.0' --filter-name 'FS60' \
+-filter 'QD < 2.0' --filter-name 'QD2' \
+-filter 'QUAL < 30.0' --filter-name 'QUAL30' \
+-filter 'SOR > 3.0' --filter-name 'SOR3' \
+-filter 'FS > 60.0' --filter-name 'FS60' \
+-filter 'MQ < 40.0' --filter-name 'MQ40' \
+-filter 'MQRankSum < -12.5' --filter-name 'MQRankSum-12.5' \
+-filter 'ReadPosRankSum < -8.0' --filter-name 'ReadPosRankSum-8' "
+sleep 1
+done
+    
+
+for L in {1..23}
+do 
+sbatch -A snic2022-22-910 -n 1 -t 5:00:00 -p core -J gatk_filter --wrap="
+gatk VariantFiltration \
+-R /proj/snic2020-6-184/Allotetraploid/Aarenosa_GCA_905175405.fa \
+-V ContigGroup$L.vcf.gz \
+-O ContigGroup$L.filt.vcf.gz \
+-filter 'FS > 60.0' --filter-name 'FS60' \
+-filter 'QD < 2.0' --filter-name 'QD2' \
+-filter 'QUAL < 30.0' --filter-name 'QUAL30' \
+-filter 'SOR > 3.0' --filter-name 'SOR3' \
+-filter 'FS > 60.0' --filter-name 'FS60' \
+-filter 'MQ < 40.0' --filter-name 'MQ40' \
+-filter 'MQRankSum < -12.5' --filter-name 'MQRankSum-12.5' \
+-filter 'ReadPosRankSum < -8.0' --filter-name 'ReadPosRankSum-8' "
+sleep 1
+done
+
+
+
+###And we filter the A. thaliana files too, after first indexing them:
+
+#=========================================== STEP5 Restricting and concatenating VCFs =======================================================
+
+###Next steps: extract PASSing variants, and concatenate VCFs.
+module load  bcftools/1.16
+for file in *filt.vcf.gz;
+do
+sbatch -A snic2022-22-910 -n 1 -t 00:30:00 -p core -J bcftoolsview --wrap="bcftools view -f PASS $file > $file.pass"
+sleep 1
+done
+
+bcftools concat \
+ContigGroup1.filt.vcf.gz.pass \
+ContigGroup2.filt.vcf.gz.pass \
+ContigGroup3.filt.vcf.gz.pass \
+ContigGroup4.filt.vcf.gz.pass \
+ContigGroup5.filt.vcf.gz.pass \
+ContigGroup6.filt.vcf.gz.pass \
+ContigGroup7.filt.vcf.gz.pass \
+ContigGroup8.filt.vcf.gz.pass \
+ContigGroup9.filt.vcf.gz.pass \
+ContigGroup10.filt.vcf.gz.pass \
+ContigGroup11.filt.vcf.gz.pass \
+ContigGroup12.filt.vcf.gz.pass \
+ContigGroup13.filt.vcf.gz.pass \
+ContigGroup14.filt.vcf.gz.pass \
+ContigGroup15.filt.vcf.gz.pass \
+ContigGroup16.filt.vcf.gz.pass \
+ContigGroup17.filt.vcf.gz.pass \
+ContigGroup18.filt.vcf.gz.pass \
+ContigGroup19.filt.vcf.gz.pass \
+ContigGroup20.filt.vcf.gz.pass \
+ContigGroup21.filt.vcf.gz.pass \
+ContigGroup22.filt.vcf.gz.pass \
+ContigGroup23.filt.vcf.gz.pass -o Aarenosa.filtpass.vcf.gz
+
+bcftools concat \
+CAJIMT010000001.filt.vcf.gz.pass \
+CAJIMT010000002.filt.vcf.gz.pass \
+CAJIMT010000003.filt.vcf.gz.pass \
+CAJIMT010000004.filt.vcf.gz.pass \
+CAJIMT010000005.filt.vcf.gz.pass \
+CAJIMT010000006.filt.vcf.gz.pass \
+CAJIMT010000007.filt.vcf.gz.pass \
+CAJIMT010000008.filt.vcf.gz.pass \
+CAJIMT010000009.filt.vcf.gz.pass \
+CAJIMT010000010.filt.vcf.gz.pass \
+CAJIMT010000011.filt.vcf.gz.pass \
+CAJIMT010000012.filt.vcf.gz.pass \
+CAJIMT010000013.filt.vcf.gz.pass -o Asuecica.filtpass.vcf.gz
+
+#=========================================== STEP6 Run SNPEff/Annotation software =======================================================
+
+SNPEff/annovar/my own programme
+- we need to annotate both monomorphic and polymorphic sites.
+
+
+
+
