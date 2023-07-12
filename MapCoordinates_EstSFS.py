@@ -3,7 +3,9 @@ from collections import defaultdict
 from collections import Counter
 
 
-#### Important note- this programme does not check if the SNP VCF file is phased or not- i.e. whetehr the symbol / or | should be expected for 'counts': check before starting
+#### This programme is agnostic to whether data is phased or not- i.e. whether the symbol / or | should be expected for 'counts': 
+#### check what is appropriate before starting
+
 
 """
 SAM format- order of columns
@@ -113,9 +115,11 @@ with gzip.open(vcffile, 'rt') as vcffile:
 				position = str(scaffold)+'\t'+str(pos)
 				ref_index = nt_order.index(ref)
 				alt_index = nt_order.index(alt)			
-	
-				### this VCF is phased- therefore |
-				counts = re.findall('[10]\|[10]', line)
+
+				### we don't care whether data is phased or not
+				counts_strike = re.findall('[10]\|[10]', line)
+				counts_dash = re.findall('[10]/[10]', line)
+				counts = counts_strike + counts_dash
 				totalcount = len(counts)*2
 				altcount = ''.join(counts).count('1')
 				refcount = totalcount-altcount			
